@@ -31,8 +31,13 @@ class JavaxGenerateBuilderCommand(sublime_plugin.TextCommand):
         endOfKlass = findEndOfKlass(fileContent)
         indentSize = inferIndentSize(fileContent)
         selectedText = ''.join([view.substr(selection) for selection in view.sel()])
+        instanceFields = fieldsIn(selectedText)
+        shouldMakeConstructor = not hasConstructor(klass, fileContent)
+        constructor = constructorDeclaration(klass, instanceFields) if shouldMakeConstructor else ''
+        builder = builderDeclaration(klass, instanceFields)
+        generatedCode = constructor + builder
         view.insert(edit, endOfKlass, formatJava(
-            indentSize, 1, builderDeclaration(klass, fieldsIn(selectedText))))
+            indentSize, 1, generatedCode))
         view.show_at_center(endOfKlass)
 
 # Private: return the top level class with name and accessor
@@ -55,6 +60,32 @@ def findEndOfKlass(text):
 def inferIndentSize(text):
     firstIndentation = re.search(r'\{.*?\n( +)', text, re.DOTALL)
     return len(firstIndentation.group(1) if firstIndentation else '  ')
+
+# Private: whether there is a constructor with some arguments already declared
+def hasConstructor(klass, text):
+    pattern = r"""
+        %(accessor)s
+        %(name)s\(
+            [^\)]+?    # some declared arguments
+        \)\s*
+        \{
+    """ % dict(
+        accessor = ACCESSOR_REGEXP,
+        name = klass.name
+    )
+    return re.search(pattern, text, re.VERBOSE) is not None
+
+# Private:
+def constructorDeclaration(klass, fields):
+    return """
+        private %(klassName)s(%(arguments)s) {
+            %(assignments)s
+        }
+    """ % dict(
+        klassName = klass.name,
+        arguments = ', '.join(map(variableDeclaration, fields)),
+        assignments = '\n'.join(map(assignment, fields))
+    )
 
 # Private: returns a list of Fields with types and names
 def fieldsIn(text):
@@ -89,21 +120,21 @@ def builderDeclaration(klass, fields):
 
 # Private: return a declaration of a Field with private accessor
 def fieldDeclaration(field):
-    return "private %(type)s %(name)s;" % field._asdict()
+    return "private %(variable)s;" % dict(variable = variableDeclaration(field))
 
 # Private: given an accessor, return a function which given a Field
 #          will return a setter declaration with that accessor
 def setterDeclaration(accessor):
     def fn(field):
         return """
-            %(accessor)s Builder set%(capitalizedName)s(%(type)s %(name)s) {
+            %(accessor)s Builder set%(capitalizedName)s(%(parameter)s) {
                 %(assignment)s
             }
         """ % dict(
             accessor = accessor,
             capitalizedName = capitalize(field.name),
             assignment = assignment(field),
-            **field._asdict()
+            parameter = variableDeclaration(field)
         )
     return fn
 
@@ -115,6 +146,11 @@ def capitalize(str):
 #          name
 def assignment(field):
     return "this.%(name)s = %(name)s;" % field._asdict()
+
+# Private: return the simple type name pair used in various declarations of
+#          variables
+def variableDeclaration(field):
+    return "%(type)s %(name)s" % field._asdict()
 
 # Private: reformats the code to have proper indentation
 def formatJava(indentSize, initialIndent, code):
