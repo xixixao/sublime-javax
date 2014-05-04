@@ -1,0 +1,6 @@
+[
+	{
+		"caption": "JavaX: Generate Builder",
+		"command": "javax_generate_builder"
+	}
+]
