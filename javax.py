@@ -30,7 +30,7 @@ class JavaxGenerateBuilderCommand(sublime_plugin.TextCommand):
         klass = getKlass(fileContent)
         endOfKlass = findEndOfKlass(fileContent)
         indentSize = inferIndentSize(fileContent)
-        selectedText = ''.join([view.substr(selection) for selection in view.sel()])
+        selectedText = '\n'.join([view.substr(selection) for selection in view.sel()])
         instanceFields = fieldsIn(selectedText)
         shouldMakeConstructor = not hasConstructor(klass, fileContent)
         constructor = constructorDeclaration(klass, instanceFields) if shouldMakeConstructor else ''
