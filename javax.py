@@ -88,55 +88,39 @@ def setter(accessor):
     return fn
 
 def sanitizeJava(code):
-    return re.sub(r' +', ' ', re.sub('\n *', '', code))
+    return re.sub('\n *', '\n', code)
 
 def indentation(indent, indentSize):
     return ''.join(' ' * indent * indentSize)
 
-def removeMarkers(code):
-    paddedLines = re.sub(r' +\+\+\+;', '', code)
-    removedLines = re.sub(r'\n\n +\-\-\-;', '', paddedLines)
-    return removedLines
-
 def formatJava(indentSize, initialIndent, code):
     indent = initialIndent
-    tokens = re.split(r'([\{\};])', sanitizeJava(code))
+    tokens = re.split(r'([\{\};]?\n)', sanitizeJava(code))
     indentedTokens = []
     for token in tokens:
-        if token in ('{', '}', ';'):
-            if token is '{':
+        if len(token) > 0:
+            if token == '{\n':
                 indent += 1
-            elif token is '}':
+            elif token == '}\n':
                 indent -= 1
-                indentedTokens.pop() # remove empty string
-                indentedTokens.pop() #   and its indentation
+            if token not in ('{\n', ';\n', '\n'):
                 indentedTokens.append(indentation(indent, indentSize))
-            indentedTokens.extend([token, '\n'])
-            if token is '}':
-                indentedTokens.append('\n')
-        else:
-            indentedTokens.extend([indentation(indent, indentSize), token])
-    indentedTokens.pop() # remove empty string
-    indentedTokens.pop() #   and its indentation
-    indentedTokens.pop() #   and last newline
-    return removeMarkers(''.join(indentedTokens))
+            indentedTokens.append(token)
+    return ''.join(indentedTokens)
 
 def buildBuilder(glass, fields):
     return """
-        +++;
         %(accessor)s class Builder {
             %(builderFields)s
-            +++;
             %(setters)s
             %(accessor)s %(glassName)s build() {
                 return new %(glassName)s(%(fieldNames)s);
             }
-            ---;
         }
     """ % dict(
         accessor = glass.accessor,
         builderFields = '\n'.join(map(fieldDeclaration, fields)),
-        setters = '\n'.join(map(setter(glass.accessor), fields)),
+        setters = ''.join(map(setter(glass.accessor), fields)),
         glassName = glass.name,
         fieldNames = ', '.join([field.name for field in fields])
     )
