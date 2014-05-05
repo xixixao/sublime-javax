@@ -105,6 +105,7 @@ def builderDeclaration(klass, fields):
     return """
         %(accessor)s class Builder {
             %(builderFields)s
+
             %(setters)s
             %(accessor)s %(klassName)s build() {
                 return new %(klassName)s(%(fieldNames)s);
@@ -113,7 +114,7 @@ def builderDeclaration(klass, fields):
     """ % dict(
         accessor = klass.accessor,
         builderFields = '\n'.join(map(fieldDeclaration, fields)),
-        setters = ''.join(map(setterDeclaration(klass.accessor), fields)),
+        setters = '\n'.join(map(setterDeclaration(klass.accessor), fields)),
         klassName = klass.name,
         fieldNames = ', '.join([field.name for field in fields])
     )
@@ -126,7 +127,7 @@ def fieldDeclaration(field):
 #          will return a setter declaration with that accessor
 def setterDeclaration(accessor):
     def fn(field):
-        return """
+        return """\
             %(accessor)s Builder set%(capitalizedName)s(%(parameter)s) {
                 %(assignment)s
             }
