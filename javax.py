@@ -92,9 +92,10 @@ def fieldsIn(text):
     pattern = r"""
         ^\s* # from start of the line, with potential indent
         %(accessor)s
+        ((transient|volatile)\s+)?
         (final\s+)?
-        (?P<type>(\w|\.)+)\s+
-        (?P<name>\w+)
+        (?P<type>[\w$\<\>\,\.\s]+)\s+
+        (?P<name>[\w$]+)
         \s*(;|=)
     """ % dict(accessor = ACCESSOR_REGEXP)
     flags = re.MULTILINE | re.VERBOSE
