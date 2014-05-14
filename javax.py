@@ -40,6 +40,24 @@ class JavaxGenerateBuilderCommand(sublime_plugin.TextCommand):
             indentSize, 1, generatedCode))
         view.show_at_center(endOfKlass)
 
+
+class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
+    def run(self, edit):
+        view = self.view
+        fileContent = view.substr(sublime.Region(0, view.size()))
+        klass = getKlass(fileContent)
+        endOfKlass = findEndOfKlass(fileContent)
+        indentSize = inferIndentSize(fileContent)
+        selectedText = '\n'.join([view.substr(selection) for selection in view.sel()])
+        instanceFields = fieldsIn(selectedText)
+        constructor = constructorDeclaration(klass, instanceFields)
+        view.insert(edit, endOfKlass, formatJava(
+            indentSize, 1, constructor))
+        view.show_at_center(endOfKlass)
+
+
+
+
 # Private: return the top level class with name and accessor
 def getKlass(text):
     pattern = r"""

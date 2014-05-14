@@ -1,6 +1,10 @@
 [
+  {
+    "caption": "JavaX: Generate Builder",
+    "command": "javax_generate_builder"
+  },
 	{
-		"caption": "JavaX: Generate Builder",
-		"command": "javax_generate_builder"
+		"caption": "JavaX: Generate Constructor",
+		"command": "javax_generate_constructor"
 	}
 ]
