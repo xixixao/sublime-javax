@@ -104,7 +104,7 @@ def fieldsIn(text):
 # Private: the whole Builder class
 def builderDeclaration(klass, fields):
     return """
-        %(accessor)s class Builder {
+        %(accessor)s static class Builder {
             %(builderFields)s
 
             %(setters)s
@@ -131,6 +131,7 @@ def setterDeclaration(accessor):
         return """\
             %(accessor)s Builder set%(capitalizedName)s(%(parameter)s) {
                 %(assignment)s
+                return this;
             }
         """ % dict(
             accessor = accessor,
