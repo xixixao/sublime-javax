@@ -57,6 +57,21 @@ class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
 
 
 
+class JavaxGenerateGettersCommand(sublime_plugin.TextCommand):
+    def run(self, edit):
+        view = self.view
+        fileContent = view.substr(sublime.Region(0, view.size()))
+        klass = getKlass(fileContent)
+        endOfKlass = findEndOfKlass(fileContent)
+        indentSize = inferIndentSize(fileContent)
+        selectedText = '\n'.join([view.substr(selection) for selection in view.sel()])
+        instanceFields = fieldsIn(selectedText)
+        getters = gettersDeclaration(instanceFields)
+        view.insert(edit, endOfKlass, formatJava(
+            indentSize, 1, getters))
+        view.show_at_center(endOfKlass)
+
+
 
 # Private: return the top level class with name and accessor
 def getKlass(text):
@@ -156,6 +171,25 @@ def setterDeclaration(accessor):
             capitalizedName = capitalize(field.name),
             assignment = assignment(field),
             parameter = variableDeclaration(field)
+        )
+    return fn
+
+def gettersDeclaration(fields):
+    return '\n'.join(map(getterDeclaration('public'), fields))
+
+# Private: given an accessor, return a function which given a Field
+#          will return a setter declaration with that accessor
+def getterDeclaration(accessor):
+    def fn(field):
+        return """\
+            %(accessor)s %(type)s get%(capitalizedName)s() {
+                return %(name)s;
+            }
+        """ % dict(
+            accessor = accessor,
+            capitalizedName = capitalize(field.name),
+            name = field.name,
+            type = field.type
         )
     return fn
 

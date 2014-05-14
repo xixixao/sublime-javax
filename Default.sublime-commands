@@ -6,5 +6,9 @@
 	{
 		"caption": "JavaX: Generate Constructor",
 		"command": "javax_generate_constructor"
-	}
+	},
+  {
+    "caption": "JavaX: Generate Getters",
+    "command": "javax_generate_getters"
+  }
 ]
