@@ -26,50 +26,57 @@ Field = namedtuple('Field', 'type name')
 class JavaxGenerateBuilderCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         view = self.view
+        selections = view.sel()
         fileContent = view.substr(sublime.Region(0, view.size()))
         klass = getKlass(fileContent)
-        endOfKlass = findEndOfKlass(fileContent)
+        lastSelection = findEndOfLastSelection(view, selections)
         indentSize = inferIndentSize(fileContent)
-        selectedText = '\n'.join([view.substr(selection) for selection in view.sel()])
+        selectedText = '\n'.join([view.substr(selection) for selection in selections])
         instanceFields = fieldsIn(selectedText)
         shouldMakeConstructor = not hasConstructor(klass, fileContent)
         constructor = constructorDeclaration(klass, instanceFields) if shouldMakeConstructor else ''
         builder = builderDeclaration(klass, instanceFields)
         generatedCode = constructor + builder
-        view.insert(edit, endOfKlass, formatJava(
-            indentSize, 1, generatedCode))
-        view.show_at_center(endOfKlass)
+        view.insert(edit, lastSelection,
+            formatJava(indentSize, 1, generatedCode))
+        view.show_at_center(lastSelection)
 
 
 class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         view = self.view
+        selections = view.sel()
         fileContent = view.substr(sublime.Region(0, view.size()))
         klass = getKlass(fileContent)
-        endOfKlass = findEndOfKlass(fileContent)
+        lastSelection = findEndOfLastSelection(view, selections)
         indentSize = inferIndentSize(fileContent)
-        selectedText = '\n'.join([view.substr(selection) for selection in view.sel()])
+        selectedText = '\n'.join([view.substr(selection) for selection in selections])
         instanceFields = fieldsIn(selectedText)
         constructor = constructorDeclaration(klass, instanceFields)
-        view.insert(edit, endOfKlass, formatJava(
+        contentSize = view.insert(edit, lastSelection, formatJava(
             indentSize, 1, constructor))
-        view.show_at_center(endOfKlass)
+        view.show_at_center(lastSelection)
+        selections.clear()
+        selections.add(sublime.Region(lastSelection, lastSelection + contentSize))
 
 
 
 class JavaxGenerateGettersCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         view = self.view
+        selections = view.sel()
         fileContent = view.substr(sublime.Region(0, view.size()))
-        klass = getKlass(fileContent)
-        endOfKlass = findEndOfKlass(fileContent)
+        lastSelection = findEndOfLastSelection(view, selections)
         indentSize = inferIndentSize(fileContent)
-        selectedText = '\n'.join([view.substr(selection) for selection in view.sel()])
+        selectedText = '\n'.join([view.substr(selection) for selection in selections])
         instanceFields = fieldsIn(selectedText)
         getters = gettersDeclaration(instanceFields)
-        view.insert(edit, endOfKlass, formatJava(
-            indentSize, 1, getters))
-        view.show_at_center(endOfKlass)
+        contentSize = view.insert(edit, lastSelection,
+            formatJava(indentSize, 1, getters))
+        view.show_at_center(lastSelection)
+        selections.clear()
+        selections.add(sublime.Region(lastSelection, lastSelection + contentSize))
+
 
 
 
@@ -83,10 +90,9 @@ def getKlass(text):
     found = Klass(**re.search(pattern, text, re.VERBOSE).groupdict())
     return Klass(found.accessor or '', found.name)
 
-# Private: find the position where the Builder should be inserted, the end
-#          of the class declaration
-def findEndOfKlass(text):
-    return re.search(r'\n( *\}\s*)$', text).start(1)
+# Private: find the position after last newline selected
+def findEndOfLastSelection(view, selections):
+    return view.lines(selections[-1])[-1].end() + 1;
 
 # Private: infer the indentation step size used in the file, default to 2 spaces
 #          We look for first indent after the class's opening brace.
@@ -110,7 +116,7 @@ def hasConstructor(klass, text):
 
 # Private:
 def constructorDeclaration(klass, fields):
-    return """
+    return """\
         private %(klassName)s(%(arguments)s) {
             %(assignments)s
         }
@@ -225,7 +231,7 @@ def formatJava(indentSize, initialIndent, code):
 
 # Private: first get rid of the bad indentation
 def stripIndentation(code):
-    return re.sub('\n *', '\n', code)
+    return re.sub('(^|\n) *', '\n', code)
 
 # Private: returns just enough spaces
 def indentationToken(indentLevel, indentSize):
