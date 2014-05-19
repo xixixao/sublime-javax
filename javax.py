@@ -30,8 +30,8 @@ class JavaxGenerateBuilderCommand(sublime_plugin.TextCommand):
         fileContent = view.substr(sublime.Region(0, view.size()))
         klass = getKlass(fileContent)
         lastSelection = findEndOfLastSelection(view, selections)
-        indentSize = inferIndentSize(fileContent)
-        selectedText = '\n'.join([view.substr(selection) for selection in selections])
+        indentSize = inferIndentSize(view.settings(), fileContent)
+        selectedText = getAllSelectedText(view, selections)
         instanceFields = fieldsIn(selectedText)
         builder = builderDeclaration(klass, instanceFields)
         generatedCode = builder
@@ -49,8 +49,8 @@ class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
         fileContent = view.substr(sublime.Region(0, view.size()))
         klass = getKlass(fileContent)
         lastSelection = findEndOfLastSelection(view, selections)
-        indentSize = inferIndentSize(fileContent)
-        selectedText = '\n'.join([view.substr(selection) for selection in selections])
+        indentSize = inferIndentSize(view.settings(), fileContent)
+        selectedText = getAllSelectedText(view, selections)
         instanceFields = fieldsIn(selectedText)
         constructor = constructorDeclaration(klass, instanceFields)
         contentSize = view.insert(edit, lastSelection, formatJava(
@@ -67,8 +67,8 @@ class JavaxGenerateGettersCommand(sublime_plugin.TextCommand):
         selections = view.sel()
         fileContent = view.substr(sublime.Region(0, view.size()))
         lastSelection = findEndOfLastSelection(view, selections)
-        indentSize = inferIndentSize(fileContent)
-        selectedText = '\n'.join([view.substr(selection) for selection in selections])
+        indentSize = inferIndentSize(view.settings(), fileContent)
+        selectedText = getAllSelectedText(view, selections)
         instanceFields = fieldsIn(selectedText)
         getters = gettersDeclaration(instanceFields)
         contentSize = view.insert(edit, lastSelection,
@@ -95,10 +95,12 @@ def findEndOfLastSelection(view, selections):
     return view.lines(selections[-1])[-1].end() + 1;
 
 # Private: infer the indentation step size used in the file, default to 2 spaces
-#          We look for first indent after the class's opening brace.
-def inferIndentSize(text):
-    firstIndentation = re.search(r'\{.*?\n( +)', text, re.DOTALL)
-    return len(firstIndentation.group(1) if firstIndentation else '  ')
+#          We look at the tab_size setting
+def inferIndentSize(settings, text):
+    return settings.get('tab_size', 2)
+
+def getAllSelectedText(view, selections):
+    return ''.join([view.substr(selection) for selection in selections])
 
 # Private:
 def constructorDeclaration(klass, fields):
