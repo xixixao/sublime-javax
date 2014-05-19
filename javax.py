@@ -19,6 +19,25 @@ from collections import namedtuple
 Klass = namedtuple('Klass', 'accessor name')
 Field = namedtuple('Field', 'type name')
 
+# Public: Generates getters for selected fields
+class JavaxGenerateGettersCommand(sublime_plugin.TextCommand):
+    def run(self, edit):
+        view = self.view
+        selections = view.sel()
+        instanceFields = getSelectedFields(view, selections)
+        getters = gettersDeclaration(instanceFields)
+        insertAtLastSelection(getters, view, edit, selections)
+
+# Public: Generates a constructor for selected fields
+class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
+    def run(self, edit):
+        view = self.view
+        selections = view.sel()
+        klass = findFirstKlass(view)
+        instanceFields = getSelectedFields(view, selections)
+        constructor = constructorDeclaration(klass, instanceFields)
+        insertAtLastSelection(constructor, view, edit, selections)
+
 # Public: Generates an inner class Builder for current top-scope class
 #
 # This is the well-known Builder Design Pattern, having a setter for each
@@ -27,60 +46,19 @@ class JavaxGenerateBuilderCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         view = self.view
         selections = view.sel()
-        fileContent = view.substr(sublime.Region(0, view.size()))
-        klass = getKlass(fileContent)
-        lastSelection = findEndOfLastSelection(view, selections)
-        indentSize = inferIndentSize(view.settings(), fileContent)
-        selectedText = getAllSelectedText(view, selections)
-        instanceFields = fieldsIn(selectedText)
+        klass = findFirstKlass(view)
+        instanceFields = getSelectedFields(view, selections)
         builder = builderDeclaration(klass, instanceFields)
-        generatedCode = builder
-        contentSize = view.insert(edit, lastSelection,
-            formatJava(indentSize, 1, generatedCode))
-        view.show_at_center(lastSelection)
-        selections.clear()
-        selections.add(sublime.Region(lastSelection, lastSelection + contentSize))
+        insertAtLastSelection(builder, view, edit, selections)
 
+# Private: finds the first declared class in the view
+#
+# TODO(xixixao): find the enclosing class of selected fields instead
+def findFirstKlass(view):
+    fileContent = view.substr(sublime.Region(0, view.size()))
+    return getKlass(fileContent)
 
-class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
-    def run(self, edit):
-        view = self.view
-        selections = view.sel()
-        fileContent = view.substr(sublime.Region(0, view.size()))
-        klass = getKlass(fileContent)
-        lastSelection = findEndOfLastSelection(view, selections)
-        indentSize = inferIndentSize(view.settings(), fileContent)
-        selectedText = getAllSelectedText(view, selections)
-        instanceFields = fieldsIn(selectedText)
-        constructor = constructorDeclaration(klass, instanceFields)
-        contentSize = view.insert(edit, lastSelection, formatJava(
-            indentSize, 1, constructor))
-        view.show_at_center(lastSelection)
-        selections.clear()
-        selections.add(sublime.Region(lastSelection, lastSelection + contentSize))
-
-
-
-class JavaxGenerateGettersCommand(sublime_plugin.TextCommand):
-    def run(self, edit):
-        view = self.view
-        selections = view.sel()
-        fileContent = view.substr(sublime.Region(0, view.size()))
-        lastSelection = findEndOfLastSelection(view, selections)
-        indentSize = inferIndentSize(view.settings(), fileContent)
-        selectedText = getAllSelectedText(view, selections)
-        instanceFields = fieldsIn(selectedText)
-        getters = gettersDeclaration(instanceFields)
-        contentSize = view.insert(edit, lastSelection,
-            formatJava(indentSize, 1, getters))
-        view.show_at_center(lastSelection)
-        selections.clear()
-        selections.add(sublime.Region(lastSelection, lastSelection + contentSize))
-
-
-
-
-# Private: return the top level class with name and accessor
+# Private: returns the top level class with name and accessor
 def getKlass(text):
     pattern = r"""
         ((?P<accessor>\w+)\s+)?
@@ -90,29 +68,17 @@ def getKlass(text):
     found = Klass(**re.search(pattern, text, re.VERBOSE).groupdict())
     return Klass(found.accessor or '', found.name)
 
-# Private: find the position after last newline selected
-def findEndOfLastSelection(view, selections):
-    return view.lines(selections[-1])[-1].end() + 1;
+# Private: returns a list of Fields among the view's selections
+def getSelectedFields(view, selections):
+    selectedText = getAllSelectedText(view, selections)
+    return fieldsIn(selectedText)
 
-# Private: infer the indentation step size used in the file, default to 2 spaces
-#          We look at the tab_size setting
-def inferIndentSize(settings, text):
-    return settings.get('tab_size', 2)
-
+# Private: returns all the selections concatenated with a newline
+#
+# Newline is used to make sure that fields in different selection Regions
+# are correctly indentified.
 def getAllSelectedText(view, selections):
-    return ''.join([view.substr(selection) for selection in selections])
-
-# Private:
-def constructorDeclaration(klass, fields):
-    return """\
-        private %(klassName)s(%(arguments)s) {
-            %(assignments)s
-        }
-    """ % dict(
-        klassName = klass.name,
-        arguments = ', '.join(map(variableDeclaration, fields)),
-        assignments = '\n'.join(map(assignment, fields))
-    )
+    return '\n'.join([view.substr(selection) for selection in selections])
 
 # Private: returns a list of Fields with types and names
 def fieldsIn(text):
@@ -128,9 +94,44 @@ def fieldsIn(text):
     flags = re.MULTILINE | re.VERBOSE
     return [Field(**m.groupdict()) for m in re.finditer(pattern, text, flags)]
 
+# Private: insert given content into the view
+#
+# The content is formatted and place after the last selection, selected and
+# centered in the view.
+def insertAtLastSelection(content, view, edit, selections):
+        lastSelection = findEndOfLastSelection(view, selections)
+        indentSize = inferIndentSize(view.settings())
+        generatedCode = content
+        contentSize = view.insert(edit, lastSelection,
+            formatJava(indentSize, 1, generatedCode))
+        view.show_at_center(lastSelection)
+        selections.clear()
+        selections.add(sublime.Region(lastSelection, lastSelection + contentSize))
+
+# Private: find the position after last newline selected
+def findEndOfLastSelection(view, selections):
+    return view.lines(selections[-1])[-1].end() + 1;
+
+# Private: infer the indentation step size used in the file, default to 2 spaces
+#          We look at the tab_size setting
+def inferIndentSize(settings):
+    return settings.get('tab_size', 2)
+
+# Private:
+def constructorDeclaration(klass, fields):
+    return """\
+        private %(klassName)s(%(arguments)s) {
+            %(assignments)s
+        }
+    """ % dict(
+        klassName = klass.name,
+        arguments = ', '.join(map(variableDeclaration, fields)),
+        assignments = '\n'.join(map(assignment, fields))
+    )
+
 # Private: the whole Builder class
 def builderDeclaration(klass, fields):
-    return """
+    return """\
         %(accessor)s static class Builder {
             %(builderFields)s
 
