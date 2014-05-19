@@ -19,6 +19,26 @@ from collections import namedtuple
 Klass = namedtuple('Klass', 'accessor name')
 Field = namedtuple('Field', 'type name')
 
+SubCommand = namedtuple('SubCommand', 'caption command')
+
+# Public: Proxy command for Generate<X> subcommands, opens a new palette
+class JavaxGenerateCommand(sublime_plugin.TextCommand):
+    def run(self, edit):
+        view = self.view
+        subCommands = [
+            SubCommand('Getters', 'javax_generate_getters'),
+            SubCommand('Constructor', 'javax_generate_constructor'),
+            SubCommand('Builder', 'javax_generate_builder'),
+        ]
+
+        def onSelected(index):
+            print("Hello", index)
+            if index != -1:
+                view.run_command(subCommands[index].command)
+
+        captions = [command.caption for command in subCommands]
+        self.view.window().show_quick_panel(captions, onSelected)
+
 # Public: Generates getters for selected fields
 class JavaxGenerateGettersCommand(sublime_plugin.TextCommand):
     def run(self, edit):
