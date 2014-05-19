@@ -33,13 +33,13 @@ class JavaxGenerateBuilderCommand(sublime_plugin.TextCommand):
         indentSize = inferIndentSize(fileContent)
         selectedText = '\n'.join([view.substr(selection) for selection in selections])
         instanceFields = fieldsIn(selectedText)
-        shouldMakeConstructor = not hasConstructor(klass, fileContent)
-        constructor = constructorDeclaration(klass, instanceFields) if shouldMakeConstructor else ''
         builder = builderDeclaration(klass, instanceFields)
-        generatedCode = constructor + builder
-        view.insert(edit, lastSelection,
+        generatedCode = builder
+        contentSize = view.insert(edit, lastSelection,
             formatJava(indentSize, 1, generatedCode))
         view.show_at_center(lastSelection)
+        selections.clear()
+        selections.add(sublime.Region(lastSelection, lastSelection + contentSize))
 
 
 class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
@@ -99,20 +99,6 @@ def findEndOfLastSelection(view, selections):
 def inferIndentSize(text):
     firstIndentation = re.search(r'\{.*?\n( +)', text, re.DOTALL)
     return len(firstIndentation.group(1) if firstIndentation else '  ')
-
-# Private: whether there is a constructor with some arguments already declared
-def hasConstructor(klass, text):
-    pattern = r"""
-        %(accessor)s
-        %(name)s\(
-            [^\)]+?    # some declared arguments
-        \)\s*
-        \{
-    """ % dict(
-        accessor = ACCESSOR_REGEXP,
-        name = klass.name
-    )
-    return re.search(pattern, text, re.VERBOSE) is not None
 
 # Private:
 def constructorDeclaration(klass, fields):
