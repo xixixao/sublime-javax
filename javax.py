@@ -105,8 +105,8 @@ def insertAtLastSelection(content, view, edit, selections):
         contentSize = view.insert(edit, lastSelection,
             formatJava(indentSize, 1, generatedCode))
         view.show_at_center(lastSelection)
-        selections.clear()
-        selections.add(sublime.Region(lastSelection, lastSelection + contentSize))
+        # selections.clear()
+        # selections.add(sublime.Region(lastSelection, lastSelection + contentSize))
 
 # Private: find the position after last newline selected
 def findEndOfLastSelection(view, selections):
