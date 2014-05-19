@@ -21,23 +21,30 @@ Field = namedtuple('Field', 'type name')
 
 SubCommand = namedtuple('SubCommand', 'caption command')
 
-# Public: Proxy command for Generate<X> subcommands, opens a new palette
+# Public: Proxy command for Generate<X> subcommands, opens a new command palette
 class JavaxGenerateCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         view = self.view
-        subCommands = [
-            SubCommand('Getters', 'javax_generate_getters'),
-            SubCommand('Constructor', 'javax_generate_constructor'),
-            SubCommand('Builder', 'javax_generate_builder'),
-        ]
+        window = view.window()
+        subCommands = self.__class__.subCommands
+        showQuickPanelForSubCommands(window, view, subCommands)
 
-        def onSelected(index):
-            print("Hello", index)
-            if index != -1:
-                view.run_command(subCommands[index].command)
+    # Stores subcommands
+    subCommands = []
 
-        captions = [command.caption for command in subCommands]
-        self.view.window().show_quick_panel(captions, onSelected)
+    @classmethod
+    def add(self, subCommand, caption):
+        self.subCommands.append(SubCommand(caption, subCommand))
+
+def showQuickPanelForSubCommands(window, view, subCommands):
+    captions = [command.caption for command in subCommands]
+    window.show_quick_panel(captions, runSubCommand(view, subCommands))
+
+def runSubCommand(view, subCommands):
+    def onSelected(index):
+        if index != -1:
+            view.run_command(subCommands[index].command)
+    return onSelected
 
 # Public: Generates getters for selected fields
 class JavaxGenerateGettersCommand(sublime_plugin.TextCommand):
@@ -47,6 +54,7 @@ class JavaxGenerateGettersCommand(sublime_plugin.TextCommand):
         instanceFields = getSelectedFields(view, selections)
         getters = gettersDeclaration(instanceFields)
         insertAtLastSelection(getters, view, edit, selections)
+JavaxGenerateCommand.add('javax_generate_getters', 'Getters')
 
 # Public: Generates a constructor for selected fields
 class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
@@ -57,6 +65,7 @@ class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
         instanceFields = getSelectedFields(view, selections)
         constructor = constructorDeclaration(klass, instanceFields)
         insertAtLastSelection(constructor, view, edit, selections)
+JavaxGenerateCommand.add('javax_generate_constructor', 'Constructor')
 
 # Public: Generates an inner class Builder for current top-scope class
 #
@@ -70,6 +79,7 @@ class JavaxGenerateBuilderCommand(sublime_plugin.TextCommand):
         instanceFields = getSelectedFields(view, selections)
         builder = builderDeclaration(klass, instanceFields)
         insertAtLastSelection(builder, view, edit, selections)
+JavaxGenerateCommand.add('javax_generate_builder', 'Builder')
 
 # Private: finds the first declared class in the view
 #
