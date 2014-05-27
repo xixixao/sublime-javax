@@ -56,6 +56,16 @@ class JavaxGenerateGettersCommand(sublime_plugin.TextCommand):
         insertAtLastSelection(getters, view, edit, selections)
 JavaxGenerateCommand.add('javax_generate_getters', 'Getters')
 
+# Public: Generates setters for selected fields
+class JavaxGenerateSettersCommand(sublime_plugin.TextCommand):
+    def run(self, edit):
+        view = self.view
+        selections = view.sel()
+        instanceFields = getSelectedFields(view, selections)
+        setters = settersDeclaration(instanceFields)
+        insertAtLastSelection(setters, view, edit, selections)
+JavaxGenerateCommand.add('javax_generate_setters', 'Setters')
+
 # Public: Generates a constructor for selected fields
 class JavaxGenerateConstructorCommand(sublime_plugin.TextCommand):
     def run(self, edit):
@@ -173,7 +183,7 @@ def builderDeclaration(klass, fields):
     """ % dict(
         accessor = klass.accessor,
         builderFields = '\n'.join(map(fieldDeclaration, fields)),
-        setters = '\n'.join(map(setterDeclaration(klass.accessor), fields)),
+        setters = '\n'.join(map(builderSetterDeclaration(klass.accessor), fields)),
         klassName = klass.name,
         fieldNames = ', '.join([field.name for field in fields])
     )
@@ -184,12 +194,29 @@ def fieldDeclaration(field):
 
 # Private: given an accessor, return a function which given a Field
 #          will return a setter declaration with that accessor
-def setterDeclaration(accessor):
+def builderSetterDeclaration(accessor):
     def fn(field):
         return """\
             %(accessor)s Builder set%(capitalizedName)s(%(parameter)s) {
                 %(assignment)s
                 return this;
+            }
+        """ % dict(
+            accessor = accessor,
+            capitalizedName = capitalize(field.name),
+            assignment = assignment(field),
+            parameter = variableDeclaration(field)
+        )
+    return fn
+
+def settersDeclaration(fields):
+    return '\n'.join(map(setterDeclaration('public'), fields))
+
+def setterDeclaration(accessor):
+    def fn(field):
+        return """\
+            %(accessor)s void set%(capitalizedName)s(%(parameter)s) {
+                %(assignment)s
             }
         """ % dict(
             accessor = accessor,
