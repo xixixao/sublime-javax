@@ -83,7 +83,7 @@ JavaxGenerateCommand.add('javax_generate_builder', 'Builder')
 
 # Private: finds the first declared class in the view
 #
-# TODO(xixixao): find the enclosing class of selected fields instead
+# TODO: find the enclosing class of selected fields instead
 def findFirstKlass(view):
     fileContent = view.substr(sublime.Region(0, view.size()))
     return getKlass(fileContent)
@@ -91,6 +91,7 @@ def findFirstKlass(view):
 # Private: returns the top level class with name and accessor
 def getKlass(text):
     pattern = r"""
+        (^|\n)
         ((?P<accessor>\w+)\s+)?
         class\s+
         (?P<name>\w+)
